@@ -1,8 +1,8 @@
-# AI CV Builder
+# Brightfolio
 
-Upload a CV (PDF) or describe your background in free text, name a target role, and get a
-structured CV draft you can review, answer a few clarifying questions on, edit by hand, and
-download as an A4 PDF with selectable text.
+An AI CV Builder test task. Upload a CV (PDF) or describe your background in free text, name a
+target role, and get a structured CV draft you can review, answer a few clarifying questions on,
+edit by hand, and download as an A4 PDF with selectable text.
 
 ## Running it
 
