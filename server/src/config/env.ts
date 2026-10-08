@@ -1,6 +1,15 @@
 import "dotenv/config";
 import { z } from "zod";
 
+// z.coerce.boolean() is a footgun for a string env var: it just calls the JS `Boolean()`
+// constructor, and Boolean("false") is `true` — any non-empty string coerces truthy. This parses
+// "true"/"1" as true and "false"/"0"/"" (or unset, via the schema's own .default()) as false,
+// which is what every env var in this file actually needs from something named LLM_MOCK=false.
+const booleanFromEnv = z
+  .string()
+  .optional()
+  .transform((v) => v === "true" || v === "1");
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -16,7 +25,7 @@ const envSchema = z.object({
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   // When set, LLM calls are served from local fixtures instead of calling Anthropic.
   // Used by tests and by `docker compose up` when no key is configured yet.
-  LLM_MOCK: z.coerce.boolean().default(false),
+  LLM_MOCK: booleanFromEnv,
 
   JOB_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
   JOB_CONCURRENCY: z.coerce.number().int().positive().default(2),
