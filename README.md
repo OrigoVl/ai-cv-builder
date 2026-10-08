@@ -217,10 +217,22 @@ display choice, not a content edit, so it can't conflict with a concurrent conte
 the built-in Helvetica standard font rather than an embedded TTF, which keeps the image free of a
 font-asset pipeline at the cost of non-Latin-script support — see "what I'd do differently" below.
 
-The detail page also has a **live HTML preview** next to the editor (`CvEditor.tsx`,
-`CvPreview.tsx` — both driven by the one `useCvDraft` hook, so they can never show different
-content than each other). It's deliberately *not* pixel-identical to the PDF — a second,
-independent approximation for on-screen use, not a second source of truth for what downloads.
+The detail page also has a **live preview** next to the editor (`CvEditor.tsx`, `CvPreview.tsx` —
+both driven by the one `useCvDraft` hook, so they can never show different content than each
+other) — and it's the **real PDF**, not an approximation of it. An earlier version rendered a
+second, hand-tuned HTML layout alongside the PDF templates; it never quite matched (different
+font metrics, different spacing units) and kept drifting every time one template changed without
+the other. It's gone now: `CvPdfPreview.tsx` runs react-pdf's `usePDF` hook against the exact same
+template component (`client/src/features/cvs/pdf-templates/` — hand-synced copies of the server's,
+proven identical by `templates.test.tsx` rendering both to a real PDF and asserting on the
+extracted text) through the same layout engine the server uses for the real download, then decodes
+the result with `pdf.js` and paints it onto a `<canvas>` with its own zoom controls — genuinely
+pixel-accurate, not a second source of truth that can disagree with the first. It's lazy-loaded
+(`React.lazy`/`Suspense`) since react-pdf's browser bundle is substantial, so only a CV detail page
+pays for it. Full writeup, including why a simpler `<PDFViewer>` iframe was tried first and
+dropped (renders blank in headless screenshots, hands the UI to the browser's native PDF plugin)
+and two more real bugs this caught (a CSP conflict with the renderer's WASM engine; `usePDF` not
+reacting to a template switch), is in that commit's message.
 
 ### Security / untrusted-input handling
 
@@ -273,7 +285,7 @@ the client's `AccountSettingsPage.tsx`.
 | `pdf/render.test.tsx` | The exported PDF is actually A4, one page, and its extracted text contains the real content — not just "didn't throw." |
 | `core/json-path.test.ts` | The tiny path get/set used to merge an answered question into the right spot in the CV. |
 | `shared/TagInput.test.tsx`, `shared/BulletListEditor.test.tsx` | Add/remove/reorder/dedupe behavior of the skills/links chip input and the per-bullet experience editor. |
-| `features/cvs/CvPreview.test.tsx` | The live preview renders the right content for both templates, and falls back sanely on an empty CV. |
+| `features/cvs/pdf-templates/templates.test.tsx` | The client's copies of the PDF templates, used by the live preview, render to a real PDF with the right A4 size and extracted text — proof the hand-synced client/server copies haven't drifted, the same way the server's own `pdf/render.test.tsx` checks its copy. |
 | `e2e/cv-flow.spec.ts` | The core happy path through the real UI against a real running container: sign up → describe yourself → wait for generation → answer a question → edit a field → confirm the live preview and a template switch both reflect it → download a real PDF. This is what caught the polling race described above — a bug three layers of unit/integration tests didn't, because each tested one piece in isolation and the bug was in how two pieces interacted over time. |
 | `e2e/account-settings.spec.ts` | Update your name and password, then actually **sign in with the new password** (not just trust a success toast) — this is what caught the sign-in race described above. Also: a wrong password is rejected on account deletion, a correct one deletes the account and signs out, and the account genuinely no longer exists afterward. |
 
@@ -294,10 +306,11 @@ the client's `AccountSettingsPage.tsx`.
 - **Bullet reordering is up/down buttons, not drag-and-drop** — slower to use for a long list, but
   keyboard- and screen-reader-operable in a way raw drag-and-drop isn't without a lot of extra
   work, which felt like the right trade for the time available.
-- **The live preview is a second, independent approximation of each PDF template**, not a shared
-  renderer — `CvPreview.tsx` and `pdf/templates/*.tsx` can drift apart in minor layout details
-  (they already use different flexbox/typography systems: Tailwind vs. react-pdf's StyleSheet).
-  Good enough to preview structure and content; I wouldn't trust it pixel-for-pixel.
+- **The client's PDF templates are hand-synced copies of the server's**, not a shared workspace
+  package (same trade-off `shared/types.ts` already makes for the `CvContent` shape) — a future
+  template edit has to be made twice. `templates.test.tsx` renders the client's copy to a real PDF
+  and asserts on its text the same way the server's `render.test.tsx` does, so a missed edit shows
+  up as a test failure, not a silent drift.
 - **No password reset or OAuth** — explicitly out of scope per the brief; better-auth would make
   both easy to add later. (Email verification is similarly out of scope, but account deletion,
   password change and profile updates are now in — see the settings page.)
