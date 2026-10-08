@@ -1,0 +1,25 @@
+{
+  "name": "ai-cv-builder",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"pnpm --filter server dev\" \"pnpm --filter client dev\"",
+    "build": "pnpm --filter server build && pnpm --filter client build",
+    "test": "pnpm --filter server test && pnpm --filter client test",
+    "test:server": "pnpm --filter server test",
+    "test:client": "pnpm --filter client test",
+    "e2e": "playwright test",
+    "typecheck": "pnpm --filter server typecheck && pnpm --filter client typecheck",
+    "db:generate": "pnpm --filter server db:generate",
+    "db:migrate": "pnpm --filter server db:migrate"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "concurrently": "^9.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.9.0"
+  }
+}
