@@ -1,0 +1,46 @@
+# AI CV Builder — run with a single command: docker compose up --build
+# The app will be available at http://localhost:3000
+# Set ANTHROPIC_API_KEY and AUTH_SECRET in a .env file next to this one (see .env.example).
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      # Points at the `postgres` service below, not localhost — containers reach each other by
+      # service name on the compose network.
+      DATABASE_URL: postgres://cvbuilder:cvbuilder@postgres:5432/cvbuilder
+      AUTH_SECRET: ${AUTH_SECRET:-change-this-to-a-random-32-byte-string}
+      CLIENT_ORIGIN: http://localhost:3000
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Falls back to a deterministic offline mock when true or when no API key is set above,
+      # so the full flow (minus real AI output) still works out of the box.
+      LLM_MOCK: ${LLM_MOCK:-false}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cvbuilder
+      POSTGRES_PASSWORD: cvbuilder
+      POSTGRES_DB: cvbuilder
+    # No host port published deliberately — the app reaches this over the compose network at
+    # `postgres:5432` regardless, and not publishing avoids colliding with a Postgres you might
+    # already have running locally on 5432. For `psql`, use `docker compose exec postgres psql
+    # -U cvbuilder`.
+    volumes:
+      - cvbuilder-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cvbuilder -d cvbuilder"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  cvbuilder-pg:
