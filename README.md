@@ -181,14 +181,46 @@ local edit in progress (a `dirty` flag) — see `client/src/features/cvs/CvEdito
 of thing that's easy to miss without actually driving the real UI end-to-end, not just unit
 testing each piece in isolation.
 
-### PDF export
+### The design/UX pass, and two more real bugs it caught
+
+After the first working version, the UI got a full redesign (rebrand to Brightfolio, a real
+design system, live preview, template switching, per-bullet and tag editors instead of raw
+textareas, an account settings page, and an accessibility pass — skip link, labeled icon inputs,
+keyboard-operable drag-and-drop, `aria-live` on save status). Two more real bugs turned up by
+actually driving the rebuilt UI, not just reading the diff:
+
+1. **Every icon-prefixed input had its icon overlapping the typed text.** Root cause:
+   `index.css`'s custom classes (`.input`, `.btn`, …) weren't wrapped in `@layer components`, so
+   Tailwind appended them as plain CSS *after* the utilities layer — meaning `.input`'s own base
+   padding beat a call site's `pl-10` override instead of losing to it, which `@layer components`
+   guarantees. Confirmed with the actual computed `padding-left` in a real browser before and
+   after the fix, not just by eyeballing the result.
+2. **A sign-in-right-after-sign-up (or right-after-password-change) race.** `navigate("/")` fired
+   the instant `signIn.email()`'s promise resolved, which could beat `useSession()`'s own reactive
+   store to the punch — `RequireAuth` reads that same store, and if it rendered before the store
+   caught up, it saw "no session" and bounced back to `/login` despite the sign-in having
+   genuinely succeeded server-side (confirmed independently via direct API calls — the backend
+   was correct the whole time). Fixed by navigating off of the session store itself, in a
+   `useEffect`, rather than off of the mutation call's resolution.
+
+Both are covered by tests going forward (`e2e/account-settings.spec.ts` signs in with a changed
+password and checks it actually lands on the dashboard, not just that an API call returned 200).
+
+### PDF export and the live preview
 
 `GET /cvs/:id/pdf` renders the CV's **currently saved** `content` (never anything from the
 request) with `@react-pdf/renderer` — a real PDF text layer (selectable, searchable), not a
-screenshot of HTML, and no headless Chromium needed in the Docker image. One fixed A4 template
-(multiple templates are explicitly out of scope). It uses the built-in Helvetica standard font
-rather than an embedded TTF, which keeps the image free of a font-asset pipeline at the cost of
-non-Latin-script support — see "what I'd do differently" below.
+screenshot of HTML, and no headless Chromium needed in the Docker image. Two templates ship
+(`server/src/pdf/templates/classic.tsx`, `modern.tsx`), picked per-CV by a `template` column that
+is deliberately *not* covered by the content `version` CAS check — switching templates is a
+display choice, not a content edit, so it can't conflict with a concurrent content save. Both use
+the built-in Helvetica standard font rather than an embedded TTF, which keeps the image free of a
+font-asset pipeline at the cost of non-Latin-script support — see "what I'd do differently" below.
+
+The detail page also has a **live HTML preview** next to the editor (`CvEditor.tsx`,
+`CvPreview.tsx` — both driven by the one `useCvDraft` hook, so they can never show different
+content than each other). It's deliberately *not* pixel-identical to the PDF — a second,
+independent approximation for on-screen use, not a second source of truth for what downloads.
 
 ### Security / untrusted-input handling
 
@@ -220,9 +252,14 @@ DELETE /api/cvs/:id
 POST   /api/cvs/:id/retry                   re-enqueue a failed generation
 POST   /api/cvs/:id/questions/:qid/answer   → 202, enqueues the merge job
 POST   /api/cvs/:id/questions/:qid/dismiss
+PUT    /api/cvs/:id/template                switch classic/modern (not version-checked)
 GET    /api/cvs/:id/pdf
 GET    /api/health
 ```
+
+Account management (name, password, delete) runs through better-auth's own endpoints under
+`/api/auth/*` (`update-user`, `change-password`, `delete-user`) rather than custom routes — see
+the client's `AccountSettingsPage.tsx`.
 
 ## Tests
 
@@ -235,12 +272,15 @@ GET    /api/health
 | `modules/cvs/cvs.api.test.ts` | Real HTTP against the real app + PGlite: cross-user isolation (404, not 403) on every route, a stale-version `409`, upload validation (spoofed MIME type, oversized file), and refusing to render a PDF before generation finished. |
 | `pdf/render.test.tsx` | The exported PDF is actually A4, one page, and its extracted text contains the real content — not just "didn't throw." |
 | `core/json-path.test.ts` | The tiny path get/set used to merge an answered question into the right spot in the CV. |
-| `e2e/cv-flow.spec.ts` | The one Playwright happy path, driven through the real UI against a real running container: sign up → describe yourself → wait for generation → answer a question → edit a field → download a real PDF. This is what caught the polling race described above — a bug three layers of unit/integration tests didn't, because each of them tested one piece in isolation and the bug was in how two pieces interacted over time. |
+| `shared/TagInput.test.tsx`, `shared/BulletListEditor.test.tsx` | Add/remove/reorder/dedupe behavior of the skills/links chip input and the per-bullet experience editor. |
+| `features/cvs/CvPreview.test.tsx` | The live preview renders the right content for both templates, and falls back sanely on an empty CV. |
+| `e2e/cv-flow.spec.ts` | The core happy path through the real UI against a real running container: sign up → describe yourself → wait for generation → answer a question → edit a field → confirm the live preview and a template switch both reflect it → download a real PDF. This is what caught the polling race described above — a bug three layers of unit/integration tests didn't, because each tested one piece in isolation and the bug was in how two pieces interacted over time. |
+| `e2e/account-settings.spec.ts` | Update your name and password, then actually **sign in with the new password** (not just trust a success toast) — this is what caught the sign-in race described above. Also: a wrong password is rejected on account deletion, a correct one deletes the account and signs out, and the account genuinely no longer exists afterward. |
 
 ## What I simplified, and what I'd do differently with more time
 
 - **PDF font**: standard Helvetica, not an embedded TTF — no non-Latin-script support (Cyrillic,
-  CJK, etc.). I'd embed a font like Inter or Noto Sans with broader coverage.
+  CJK, etc.).
 - **One job worker, in-process**: fine at this scale; a second replica would need an external
   queue or at least a shared lock table partitioned differently (the current `SKIP LOCKED`
   approach actually already generalizes to multiple *processes* sharing one Postgres, just not
@@ -251,16 +291,22 @@ GET    /api/health
   of AI writing.
 - **No OCR**: a scanned PDF with no text layer is rejected with a clear message rather than
   attempting OCR, which felt like real scope creep for the time budget.
-- **The bullet/skills/links editors are plain textareas/comma-separated inputs** (one bullet per
-  line) rather than a fully drag-and-drop rich list editor — faster to build correctly, and still
-  lets you edit every field, just with slightly less polish than a dedicated per-bullet UI.
-- **No password reset, email verification, or OAuth** — explicitly out of scope per the brief;
-  better-auth would make all three easy to add later.
+- **Bullet reordering is up/down buttons, not drag-and-drop** — slower to use for a long list, but
+  keyboard- and screen-reader-operable in a way raw drag-and-drop isn't without a lot of extra
+  work, which felt like the right trade for the time available.
+- **The live preview is a second, independent approximation of each PDF template**, not a shared
+  renderer — `CvPreview.tsx` and `pdf/templates/*.tsx` can drift apart in minor layout details
+  (they already use different flexbox/typography systems: Tailwind vs. react-pdf's StyleSheet).
+  Good enough to preview structure and content; I wouldn't trust it pixel-for-pixel.
+- **No password reset or OAuth** — explicitly out of scope per the brief; better-auth would make
+  both easy to add later. (Email verification is similarly out of scope, but account deletion,
+  password change and profile updates are now in — see the settings page.)
 - With more time, I'd also: add a retry/backoff visible in the UI while a `generate` job is on
   attempt 2 or 3 (right now the user just sees "Generating…" throughout); make the questions
-  panel let you jump the editor directly to the field in question; and add a light real-time
-  channel (SSE) so a second open tab/device sees generation finish without waiting out its own
-  poll interval.
+  panel let you jump the editor directly to the field in question; add a light real-time channel
+  (SSE) so a second open tab/device sees generation finish without waiting out its own poll
+  interval; and embed a broader-coverage font (Inter or Noto Sans) in the PDF output for non-Latin
+  scripts, instead of the built-in Helvetica.
 
 ## How I used AI tools
 
@@ -294,3 +340,12 @@ from scratch. I didn't just accept the output, though:
   (Postgres-backed queue over Redis, tool-use-with-forced-schema over "ask for JSON", a
   path-specific schema generator over a generic `unknown` field) and can account for each one
   above.
+- A second pass (redesign, live preview, templates, account settings, accessibility) found two
+  more real bugs the same way — by actually running the rebuilt app and screenshotting/driving it,
+  not by reading the diff and assuming it worked: a Tailwind `@layer` ordering bug that made every
+  icon overlap its input's text, and a sign-in race condition. Both are written up in "The
+  design/UX pass, and two more real bugs it caught" above, with the actual before/after evidence
+  (computed CSS, direct API calls) rather than just "fixed it."
+- Also used it to generate and review the Brightfolio logo mark (inline SVG, no image asset
+  pipeline) and to pick the name/tagline, then reviewed both against the task's own "no invented
+  facts, clearly told" positioning before keeping them.
