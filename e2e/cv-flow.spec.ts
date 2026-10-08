@@ -40,17 +40,31 @@ test("sign up, generate, answer a question, edit, and download a PDF", async ({ 
   // refetch, in shared/queries/cvs.ts, is what actually catches this in normal use).
   await page.waitForTimeout(2000);
 
+  // The live preview is a real PDF (react-pdf's output, decoded and painted onto a <canvas> by
+  // pdf.js — see CvPdfPreview.tsx) rather than inspectable HTML text, so "it updated" is checked
+  // by comparing the canvas's own pixel content before/after, not by reading text out of it.
+  const previewCanvas = page.locator("canvas").first();
+  await expect(previewCanvas).toBeVisible({ timeout: 10_000 });
+  const beforeEdit = await previewCanvas.evaluate((el: HTMLCanvasElement) => el.toDataURL());
+
   // Manually edit a field and confirm autosave reports success, AND that the live preview
-  // (which reads the same draft state, not a separate fetch) picks up the edit immediately.
+  // (which reads the same draft state, not a separate fetch, debounced ~500ms) re-renders to
+  // reflect it.
   const summaryBox = page.locator("textarea").first();
   await summaryBox.fill("Backend engineer focused on reliable systems.");
   await expect(page.getByText("Saved")).toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText("Backend engineer focused on reliable systems.").last()).toBeVisible();
+  await expect
+    .poll(() => previewCanvas.evaluate((el: HTMLCanvasElement) => el.toDataURL()), { timeout: 5_000 })
+    .not.toBe(beforeEdit);
+  const afterEdit = await previewCanvas.evaluate((el: HTMLCanvasElement) => el.toDataURL());
 
-  // Switching templates updates the preview without touching the editor's content.
+  // Switching templates re-renders the preview (a structurally different PDF layout) without
+  // touching the editor's content.
   await page.getByRole("radio", { name: "Modern" }).click();
   await expect(page.getByRole("radio", { name: "Modern" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByText("Backend engineer focused on reliable systems.").last()).toBeVisible();
+  await expect
+    .poll(() => previewCanvas.evaluate((el: HTMLCanvasElement) => el.toDataURL()), { timeout: 5_000 })
+    .not.toBe(afterEdit);
 
   // The link is target="_blank" with a Content-Disposition: attachment response — Chromium
   // turns that into a download rather than a page navigation, which Playwright surfaces as a

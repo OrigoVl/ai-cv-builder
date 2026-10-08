@@ -63,7 +63,7 @@ function ReadyCv({ cv, questions }: { cv: Cv; questions: CvQuestion[] }) {
         <TemplateSwitcher cvId={cv.id} current={cv.template} />
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_460px]">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_520px]">
         <CvEditor draft={draft} />
         <CvPreview content={draft.content} template={cv.template} />
       </div>

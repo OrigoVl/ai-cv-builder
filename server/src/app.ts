@@ -14,7 +14,29 @@ import { env, isProduction } from "./config/env.js";
 export function createApp(): express.Express {
   const app = express();
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      // The live PDF preview (client/src/features/cvs/CvPdfPreview.tsx) does two things that
+      // need CSP room beyond helmet's strict defaults, found by actually loading the feature in
+      // a browser and reading the CSP violations in the console rather than guessing up front:
+      // (1) react-pdf (generating the PDF) compiles a WebAssembly module loaded from a `data:`
+      //     URI — needs 'wasm-unsafe-eval' (the narrow, WASM-only alternative to 'unsafe-eval',
+      //     which this does NOT grant — arbitrary eval() of JS strings is still blocked) and
+      //     `data:` in connect-src.
+      // (2) pdf.js (rendering it to canvas) insists on parsing/decoding in a Worker — needs its
+      //     same-origin worker script allowed, which 'self' alone doesn't reliably cover for
+      //     worker-src across browsers (it's a separate fetch directive, distinct from the
+      //     script-src used for ordinary <script> tags).
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          "script-src": ["'self'", "'wasm-unsafe-eval'"],
+          "connect-src": ["'self'", "data:"],
+          "worker-src": ["'self'"],
+        },
+      },
+    }),
+  );
   app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
 
   // better-auth's own handler needs the raw request (it parses the body itself) — mounted
