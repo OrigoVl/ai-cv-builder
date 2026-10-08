@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.js";
 import { cvKeys } from "./keys.js";
-import type { Cv, CvContent, CvQuestion } from "../types.js";
+import type { Cv, CvContent, CvQuestion, CvTemplate } from "../types.js";
 
 export function useCvs() {
   return useQuery({
@@ -91,6 +91,16 @@ export function useAnswerQuestion(cvId: string) {
       // it, so the editor isn't left holding a stale version in the meantime.
       qc.invalidateQueries({ queryKey: cvKeys.detail(cvId) });
       setTimeout(() => qc.invalidateQueries({ queryKey: cvKeys.detail(cvId) }), 1500);
+    },
+  });
+}
+
+export function useUpdateTemplate(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (template: CvTemplate) => api.put<{ cv: Cv }>(`/cvs/${id}/template`, { template }),
+    onSuccess: (data) => {
+      qc.setQueryData<CvDetail>(cvKeys.detail(id), (prev) => (prev ? { ...prev, cv: data.cv } : prev));
     },
   });
 }

@@ -1,20 +1,15 @@
-import { useEffect, useState, type InputHTMLAttributes, type ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { Briefcase, GraduationCap, Link2, Mail, MapPin, Phone, Sparkles, User } from "lucide-react";
-import type { Cv, CvContent } from "../../shared/types.js";
-import { EMPTY_CV_CONTENT } from "../../shared/types.js";
-import { useUpdateCv } from "../../shared/queries/cvs.js";
-import { cvKeys } from "../../shared/queries/keys.js";
-import { ApiError } from "../../shared/api.js";
-import { useDebouncedCallback } from "../../shared/use-debounced-callback.js";
+import { TagInput } from "../../shared/TagInput.js";
 import { ExperienceEditor } from "./ExperienceEditor.js";
 import { EducationEditor } from "./EducationEditor.js";
-import { SaveStatus, type SaveState } from "./SaveStatus.js";
+import { SaveStatus } from "./SaveStatus.js";
+import type { CvDraft } from "./useCvDraft.js";
 
 function SectionHeading({ icon: Icon, children }: { icon: typeof User; children: ReactNode }) {
   return (
     <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
-      <Icon className="h-4 w-4 text-brand-500" />
+      <Icon className="h-4 w-4 text-brand-500" aria-hidden="true" />
       {children}
     </h3>
   );
@@ -22,68 +17,31 @@ function SectionHeading({ icon: Icon, children }: { icon: typeof User; children:
 
 function IconInput({
   icon: Icon,
+  label,
   ...props
-}: { icon: typeof User } & InputHTMLAttributes<HTMLInputElement>) {
+}: { icon: typeof User; label: string } & InputHTMLAttributes<HTMLInputElement>) {
+  const id = useId();
   return (
     <div className="relative">
-      <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" />
-      <input className="input pl-10" {...props} />
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" aria-hidden="true" />
+      <input id={id} className="input pl-10" {...props} />
     </div>
   );
 }
 
-export function CvEditor({ cv }: { cv: Cv }) {
-  const qc = useQueryClient();
-  const updateCv = useUpdateCv(cv.id);
-
-  const [content, setContent] = useState<CvContent>(cv.content ?? EMPTY_CV_CONTENT);
-  const [baseVersion, setBaseVersion] = useState(cv.version);
-  const [dirty, setDirty] = useState(false);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
-
-  // Content changed on the server (e.g. a question's answer was just merged in) without us
-  // having unsaved local edits in flight — safe to pick up the new baseline automatically.
-  useEffect(() => {
-    if (!dirty && cv.version !== baseVersion) {
-      setContent(cv.content ?? EMPTY_CV_CONTENT);
-      setBaseVersion(cv.version);
-    }
-  }, [cv.version, cv.content, dirty, baseVersion]);
-
-  const debouncedSave = useDebouncedCallback((next: CvContent, version: number) => {
-    setSaveState("saving");
-    updateCv.mutate(
-      { content: next, version },
-      {
-        onSuccess: (data) => {
-          setBaseVersion(data.cv.version);
-          setDirty(false);
-          setSaveState("saved");
-        },
-        onError: (err) => {
-          setSaveState(err instanceof ApiError && err.status === 409 ? "conflict" : "error");
-        },
-      },
-    );
-  }, 700);
-
-  function patch(next: CvContent) {
-    setContent(next);
-    setDirty(true);
-    debouncedSave(next, baseVersion);
-  }
-
-  function reload() {
-    qc.invalidateQueries({ queryKey: cvKeys.detail(cv.id) });
-    setDirty(false);
-    setSaveState("idle");
-  }
+export function CvEditor({ draft }: { draft: CvDraft }) {
+  const { content, patch, saveState, reload } = draft;
 
   return (
     <div className="card divide-y divide-gray-100">
       <div className="flex items-center justify-between pb-4">
         <h2 className="text-base font-semibold text-gray-900">Edit your CV</h2>
-        <SaveStatus state={saveState} onReload={reload} />
+        <div aria-live="polite">
+          <SaveStatus state={saveState} onReload={reload} />
+        </div>
       </div>
 
       <section className="py-5">
@@ -91,50 +49,53 @@ export function CvEditor({ cv }: { cv: Cv }) {
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <IconInput
             icon={User}
+            label="Full name"
             placeholder="Full name"
             value={content.contact.name}
             onChange={(e) => patch({ ...content, contact: { ...content.contact, name: e.target.value } })}
           />
           <IconInput
             icon={Mail}
+            label="Email"
+            type="email"
             placeholder="Email"
             value={content.contact.email}
             onChange={(e) => patch({ ...content, contact: { ...content.contact, email: e.target.value } })}
           />
           <IconInput
             icon={Phone}
+            label="Phone"
+            type="tel"
             placeholder="Phone"
             value={content.contact.phone}
             onChange={(e) => patch({ ...content, contact: { ...content.contact, phone: e.target.value } })}
           />
           <IconInput
             icon={MapPin}
+            label="Location"
             placeholder="Location"
             value={content.contact.location}
             onChange={(e) => patch({ ...content, contact: { ...content.contact, location: e.target.value } })}
           />
         </div>
         <div className="mt-2.5">
-          <IconInput
+          <TagInput
+            label="Links"
             icon={Link2}
-            placeholder="Links, comma-separated (portfolio, LinkedIn, GitHub…)"
-            value={content.contact.links.join(", ")}
-            onChange={(e) =>
-              patch({
-                ...content,
-                contact: {
-                  ...content.contact,
-                  links: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                },
-              })
-            }
+            placeholder="Add a link (portfolio, LinkedIn, GitHub…)"
+            values={content.contact.links}
+            onChange={(links) => patch({ ...content, contact: { ...content.contact, links } })}
           />
         </div>
       </section>
 
       <section className="py-5">
         <SectionHeading icon={Sparkles}>Summary</SectionHeading>
+        <label htmlFor="cv-summary" className="sr-only">
+          Summary
+        </label>
         <textarea
+          id="cv-summary"
           className="textarea min-h-[90px]"
           value={content.summary}
           onChange={(e) => patch({ ...content, summary: e.target.value })}
@@ -153,11 +114,11 @@ export function CvEditor({ cv }: { cv: Cv }) {
 
       <section className="pt-5">
         <SectionHeading icon={Sparkles}>Skills</SectionHeading>
-        <input
-          className="input"
-          placeholder="Comma-separated, e.g. TypeScript, PostgreSQL, Kubernetes"
-          value={content.skills.join(", ")}
-          onChange={(e) => patch({ ...content, skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+        <TagInput
+          label="Skills"
+          placeholder="Add a skill, e.g. TypeScript"
+          values={content.skills}
+          onChange={(skills) => patch({ ...content, skills })}
         />
       </section>
     </div>

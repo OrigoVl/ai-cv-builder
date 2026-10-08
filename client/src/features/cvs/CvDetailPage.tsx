@@ -1,22 +1,23 @@
 import { Link, useParams } from "react-router";
 import { ArrowLeft, Download } from "lucide-react";
 import { useCv } from "../../shared/queries/cvs.js";
+import type { Cv, CvQuestion } from "../../shared/types.js";
 import { StatusBadge } from "./StatusBadge.js";
 import { GeneratingState } from "./GeneratingState.js";
 import { FailedState } from "./FailedState.js";
 import { CvEditor } from "./CvEditor.js";
+import { CvPreview } from "./CvPreview.js";
+import { TemplateSwitcher } from "./TemplateSwitcher.js";
 import { QuestionsPanel } from "./QuestionsPanel.js";
+import { CvDetailSkeleton } from "./CvDetailSkeleton.js";
+import { useCvDraft } from "./useCvDraft.js";
 
 export function CvDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useCv(id);
 
-  if (isLoading) {
-    return <div className="card h-40 animate-pulse bg-gray-50" />;
-  }
-  if (error || !data) {
-    return <p className="text-sm text-red-600">Could not load this CV.</p>;
-  }
+  if (isLoading) return <CvDetailSkeleton />;
+  if (error || !data) return <p className="text-sm text-red-600">Could not load this CV.</p>;
 
   const { cv, questions } = data;
 
@@ -45,12 +46,27 @@ export function CvDetailPage() {
 
       {cv.status === "generating" && <GeneratingState />}
       {cv.status === "failed" && <FailedState cvId={cv.id} error={cv.error} />}
-      {cv.status === "ready" && cv.content && (
-        <>
-          <QuestionsPanel cvId={cv.id} questions={questions} />
-          <CvEditor cv={cv} />
-        </>
-      )}
+      {cv.status === "ready" && cv.content && <ReadyCv cv={cv} questions={questions} />}
     </div>
+  );
+}
+
+function ReadyCv({ cv, questions }: { cv: Cv; questions: CvQuestion[] }) {
+  const draft = useCvDraft(cv);
+
+  return (
+    <>
+      <QuestionsPanel cvId={cv.id} questions={questions} />
+
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-600">Template</span>
+        <TemplateSwitcher cvId={cv.id} current={cv.template} />
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <CvEditor draft={draft} />
+        <CvPreview content={draft.content} template={cv.template} />
+      </div>
+    </>
   );
 }

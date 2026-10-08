@@ -43,6 +43,7 @@ export const EMPTY_CV_CONTENT: CvContent = {
 };
 
 export type CvStatus = "draft" | "generating" | "ready" | "failed";
+export type CvTemplate = "classic" | "modern";
 
 export interface Cv {
   id: string;
@@ -53,6 +54,7 @@ export interface Cv {
   status: CvStatus;
   error: string | null;
   content: CvContent | null;
+  template: CvTemplate;
   version: number;
   createdAt: string;
   updatedAt: string;
