@@ -6,6 +6,7 @@ import { SignupPage } from "../features/auth/SignupPage.js";
 import { CvListPage } from "../features/cvs/CvListPage.js";
 import { NewCvPage } from "../features/cvs/NewCvPage.js";
 import { CvDetailPage } from "../features/cvs/CvDetailPage.js";
+import { AccountSettingsPage } from "../features/account/AccountSettingsPage.js";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { data, isPending } = useSession();
@@ -29,6 +30,7 @@ export function App() {
         <Route path="/" element={<CvListPage />} />
         <Route path="/new" element={<NewCvPage />} />
         <Route path="/cvs/:id" element={<CvDetailPage />} />
+        <Route path="/settings" element={<AccountSettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
