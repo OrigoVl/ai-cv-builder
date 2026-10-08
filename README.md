@@ -42,8 +42,8 @@ pnpm e2e
 ```
 
 Server tests run against a real (in-process, WASM) Postgres via [PGlite](https://pglite.dev/) —
-the same committed migrations the real app runs, no Docker needed, no network. 43 server tests
-and 8 client tests, all passing; see "Tests" below for what each file actually covers.
+the same committed migrations the real app runs, no Docker needed, no network. 83 server tests
+and 31 client tests, all passing; see "Tests" below for what each file actually covers.
 
 ### Local dev (without Docker)
 
@@ -279,7 +279,10 @@ the client's `AccountSettingsPage.tsx`.
 |---|---|
 | `llm/grounding.test.ts` | The core anti-hallucination logic: invented facts/entities get stripped and questioned; rephrasing with no numbers passes; a fact from a later answer is allowed; an unverifiable evidence quote is rejected. |
 | `llm/generation.service.test.ts` | The mock → grounding pipeline end-to-end, plus a regression test for the "experience is an array of objects" bug below. |
+| `llm/client.test.ts` | The real Anthropic call path (the SDK itself is mocked — no network, no key needed): a clean first response, `stop_reason=max_tokens` retrying once with double the token budget, a refusal (no tool call) failing with a readable error, one repair turn on invalid tool input that then succeeds, and a repair attempt that's still invalid or still refuses, both of which fail the job rather than looping. |
+| `llm/section-schema.test.ts` | `sectionValueSchema`'s field-path → zod-schema resolution for every path shape `update_section` can touch (whole array vs. one entry vs. one bullet vs. a scalar field, for both experience and education, plus skills/contact/contact.links/summary and the unrecognized-path fallback) — each case checked both ways, accepting its own shape and rejecting a neighboring one. |
 | `jobs/queue.test.ts` | Claim-once semantics, FIFO order, retry-then-fail after `max_attempts`, and recovering a job a worker crashed while holding (the `locked_until` expiry path). |
+| `jobs/worker.test.ts` | `startWorker()` itself (queue.test.ts only covers the primitives it's built from): claims and runs a job end-to-end, routes by job type to the right handler, re-queues on failure without calling `onExhausted` while retries remain, calls `onExhausted` once they run out, drains a backlog back-to-back instead of waiting out the poll interval between jobs, runs `JOB_CONCURRENCY` lanes polling independently, and `stop()` actually halts further polling. |
 | `jobs/handlers/handlers.test.ts` | The generate and apply-answer handlers against a real PGlite Postgres: content/status get written correctly, `onExhausted` marks the CV failed, a CAS conflict is rebased rather than clobbering a concurrent edit, and a regression test for answering a structured-array question. |
 | `modules/cvs/cvs.api.test.ts` | Real HTTP against the real app + PGlite: cross-user isolation (404, not 403) on every route, a stale-version `409`, upload validation (spoofed MIME type, oversized file), and refusing to render a PDF before generation finished. |
 | `modules/cvs/pdf-extract.service.test.tsx` | Uploaded-PDF text extraction against real PDFs (built with `@react-pdf/renderer`, not fixtures): a scanned-style PDF with no text layer 422s with a helpful message instead of silently generating from near-nothing; a corrupted PDF 422s instead of 500ing; extraction is capped at the first 10 pages of a 15-page file. |
