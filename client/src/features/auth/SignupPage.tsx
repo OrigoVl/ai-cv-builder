@@ -1,18 +1,25 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowRight, Mail, User } from "lucide-react";
-import { signUp } from "../../shared/auth-client.js";
+import { signUp, useSession } from "../../shared/auth-client.js";
 import { PasswordInput } from "../../shared/PasswordInput.js";
 import { Spinner } from "../../shared/Spinner.js";
 import { AuthShell } from "./AuthShell.js";
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const { data: session } = useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // See LoginPage for why this navigates off of the session store rather than right after
+  // signUp's promise resolves — the same store-not-updated-yet race applies here too.
+  useEffect(() => {
+    if (session?.session) navigate("/");
+  }, [session, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -22,9 +29,7 @@ export function SignupPage() {
     setLoading(false);
     if (authError) {
       setError(authError.message ?? "Could not create your account.");
-      return;
     }
-    navigate("/");
   }
 
   return (

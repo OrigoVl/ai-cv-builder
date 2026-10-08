@@ -1,17 +1,28 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowRight, Mail } from "lucide-react";
-import { signIn } from "../../shared/auth-client.js";
+import { signIn, useSession } from "../../shared/auth-client.js";
 import { PasswordInput } from "../../shared/PasswordInput.js";
 import { Spinner } from "../../shared/Spinner.js";
 import { AuthShell } from "./AuthShell.js";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Navigating the instant signIn's promise resolves can beat useSession()'s own reactive store
+  // to the punch: RequireAuth (App.tsx) reads that same store, and if its first render after the
+  // navigate lands before the store has caught up, it sees "no session" and bounces straight
+  // back to /login — a real race, not hypothetical, caught by an e2e run that signed in right
+  // after a password change. Navigating off of the store itself, once it actually reflects the
+  // new session, avoids the race entirely instead of just adding a delay and hoping.
+  useEffect(() => {
+    if (session?.session) navigate("/");
+  }, [session, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -21,9 +32,8 @@ export function LoginPage() {
     setLoading(false);
     if (authError) {
       setError(authError.message ?? "Could not sign in. Check your email and password.");
-      return;
     }
-    navigate("/");
+    // On success, the useEffect above navigates once the session store updates.
   }
 
   return (
