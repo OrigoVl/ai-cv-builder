@@ -11,7 +11,7 @@ test("sign up, generate, answer a question, edit, and download a PDF", async ({ 
   await page.locator("#name").fill("E2E Tester");
   await page.locator("#email").fill(email);
   await page.locator("#password").fill("password1234");
-  await page.getByRole("button", { name: "Sign up" }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
 
   await expect(page.getByRole("link", { name: "New CV" })).toBeVisible();
   await page.getByRole("link", { name: "New CV" }).click();
@@ -31,7 +31,7 @@ test("sign up, generate, answer a question, edit, and download a PDF", async ({ 
   const answerInput = page.getByPlaceholder("Your answer");
   await expect(answerInput).toBeVisible({ timeout: 10_000 });
   await answerInput.fill("Senior Backend Engineer at Acme Corp, 2019-2023");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Save answer" }).click();
   await expect(answerInput).toBeHidden({ timeout: 10_000 }); // question panel clears once answered
 
   // The question clearing only means it was recorded — the apply_answer job that merges it into

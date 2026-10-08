@@ -1,4 +1,5 @@
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
+import { ArrowLeft, Download } from "lucide-react";
 import { useCv } from "../../shared/queries/cvs.js";
 import { StatusBadge } from "./StatusBadge.js";
 import { GeneratingState } from "./GeneratingState.js";
@@ -10,23 +11,33 @@ export function CvDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useCv(id);
 
-  if (isLoading) return <p className="text-sm text-gray-500">Loading…</p>;
-  if (error || !data) return <p className="text-sm text-red-600">Could not load this CV.</p>;
+  if (isLoading) {
+    return <div className="card h-40 animate-pulse bg-gray-50" />;
+  }
+  if (error || !data) {
+    return <p className="text-sm text-red-600">Could not load this CV.</p>;
+  }
 
   const { cv, questions } = data;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <ArrowLeft className="h-4 w-4" />
+        Back to your CVs
+      </Link>
+
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-semibold">{cv.title}</h1>
+          <h1 className="truncate text-xl font-semibold text-gray-900">{cv.title}</h1>
           <p className="truncate text-sm text-gray-500">{cv.targetRole}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <StatusBadge status={cv.status} />
           {cv.status === "ready" && (
             <a className="btn-primary" href={`/api/cvs/${cv.id}/pdf`} target="_blank" rel="noreferrer">
-              Download PDF
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Download PDF</span>
             </a>
           )}
         </div>

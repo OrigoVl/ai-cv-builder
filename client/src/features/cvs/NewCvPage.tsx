@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
+import { ArrowLeft, FileUp, Lightbulb, Sparkles, Type } from "lucide-react";
 import { useCreateCv } from "../../shared/queries/cvs.js";
 import { ApiError } from "../../shared/api.js";
+import { FileDropzone } from "../../shared/FileDropzone.js";
+import { Spinner } from "../../shared/Spinner.js";
 
 export function NewCvPage() {
   const navigate = useNavigate();
@@ -32,11 +35,22 @@ export function NewCvPage() {
   const canSubmit = targetRole.trim().length > 0 && (mode === "pdf" ? !!file : sourceText.trim().length > 0);
 
   return (
-    <div>
-      <h1 className="mb-4 text-lg font-semibold">New CV</h1>
-      <form onSubmit={handleSubmit} className="card space-y-4">
+    <div className="mx-auto max-w-xl space-y-5">
+      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <ArrowLeft className="h-4 w-4" />
+        Back to your CVs
+      </Link>
+
+      <div>
+        <h1 className="text-xl font-semibold text-gray-900">New CV</h1>
+        <p className="mt-0.5 text-sm text-gray-500">A couple of details, then the AI takes a first pass.</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="card space-y-5">
         <div>
-          <label className="label" htmlFor="title">Title (optional)</label>
+          <label className="label" htmlFor="title">
+            Title <span className="font-normal text-gray-400">(optional, just for your own list)</span>
+          </label>
           <input
             id="title"
             className="input"
@@ -45,8 +59,11 @@ export function NewCvPage() {
             placeholder="e.g. Backend CV"
           />
         </div>
+
         <div>
-          <label className="label" htmlFor="targetRole">Target role</label>
+          <label className="label" htmlFor="targetRole">
+            Target role
+          </label>
           <input
             id="targetRole"
             className="input"
@@ -55,41 +72,36 @@ export function NewCvPage() {
             onChange={(e) => setTargetRole(e.target.value)}
             placeholder="e.g. Senior Backend Engineer"
           />
+          <p className="help-text">The summary and bullet order are tailored to this.</p>
         </div>
 
         <div>
-          <div className="mb-2 flex gap-2">
+          <span className="label">Your background</span>
+          <div className="segmented mb-3">
             <button
               type="button"
-              className={mode === "pdf" ? "btn-primary" : "btn-secondary"}
+              className={`segmented-option ${mode === "pdf" ? "segmented-option-active" : ""}`}
               onClick={() => setMode("pdf")}
             >
+              <FileUp className="h-4 w-4" />
               Upload PDF
             </button>
             <button
               type="button"
-              className={mode === "text" ? "btn-primary" : "btn-secondary"}
+              className={`segmented-option ${mode === "text" ? "segmented-option-active" : ""}`}
               onClick={() => setMode("text")}
             >
+              <Type className="h-4 w-4" />
               Describe yourself
             </button>
           </div>
 
           {mode === "pdf" ? (
-            <div>
-              <input
-                type="file"
-                aria-label="CV PDF file"
-                accept="application/pdf"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="block w-full text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-400">PDF with selectable text, up to 5MB.</p>
-            </div>
+            <FileDropzone file={file} onChange={setFile} />
           ) : (
             <textarea
               id="sourceText"
-              className="input min-h-[160px]"
+              className="textarea min-h-[160px]"
               placeholder="Paste or write your background: roles, companies, dates, achievements…"
               value={sourceText}
               onChange={(e) => setSourceText(e.target.value)}
@@ -97,10 +109,25 @@ export function NewCvPage() {
           )}
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex items-start gap-2.5 rounded-xl bg-brand-50/70 px-3.5 py-3 text-xs text-brand-800">
+          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+          <p>
+            More detail in, better CV out — include real dates, numbers, and outcomes where you can. Anything
+            missing gets asked as a quick question afterwards, rather than guessed.
+          </p>
+        </div>
+
+        {error && <div className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</div>}
 
         <button className="btn-primary w-full" type="submit" disabled={!canSubmit || createCv.isPending}>
-          {createCv.isPending ? "Starting…" : "Generate CV"}
+          {createCv.isPending ? (
+            <Spinner />
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" />
+              Generate CV
+            </>
+          )}
         </button>
       </form>
     </div>
