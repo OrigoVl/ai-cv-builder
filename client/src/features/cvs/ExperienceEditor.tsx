@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import type { ExperienceEntry } from "../../shared/types.js";
+import { BulletListEditor } from "../../shared/BulletListEditor.js";
 
 const EMPTY_ENTRY: ExperienceEntry = { company: "", title: "", location: "", startDate: "", endDate: "", bullets: [] };
 
@@ -73,12 +74,9 @@ export function ExperienceEditor({
               <input className="input" placeholder="End (or Present)" value={entry.endDate} onChange={(e) => update(i, { endDate: e.target.value })} />
             </div>
           </div>
-          <label className="label mt-3">Bullet points (one per line)</label>
-          <textarea
-            className="textarea min-h-[90px]"
-            value={entry.bullets.join("\n")}
-            onChange={(e) => update(i, { bullets: e.target.value.split("\n") })}
-          />
+          <div className="mt-3">
+            <BulletListEditor bullets={entry.bullets} onChange={(bullets) => update(i, { bullets })} />
+          </div>
         </div>
       ))}
       <button type="button" className="btn-secondary w-full" onClick={() => onChange([...entries, { ...EMPTY_ENTRY }])}>
