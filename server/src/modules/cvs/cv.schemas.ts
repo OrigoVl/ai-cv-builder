@@ -68,3 +68,10 @@ export const UpdateCvSchema = z.object({
 export const AnswerQuestionSchema = z.object({
   answer: z.string().min(1).max(2000),
 });
+
+export const CvTemplateSchema = z.enum(["classic", "modern"]);
+export type CvTemplate = z.infer<typeof CvTemplateSchema>;
+
+export const UpdateTemplateSchema = z.object({
+  template: CvTemplateSchema,
+});

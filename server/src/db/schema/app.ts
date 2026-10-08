@@ -4,6 +4,7 @@ import type { CvContent } from "../../modules/cvs/cv.schemas.js";
 
 export const sourceKindEnum = pgEnum("source_kind", ["pdf", "text"]);
 export const cvStatusEnum = pgEnum("cv_status", ["draft", "generating", "ready", "failed"]);
+export const cvTemplateEnum = pgEnum("cv_template", ["classic", "modern"]);
 export const questionStatusEnum = pgEnum("question_status", ["open", "answered", "dismissed"]);
 export const jobTypeEnum = pgEnum("job_type", ["generate", "apply_answer"]);
 export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "done", "failed"]);
@@ -20,6 +21,10 @@ export const cvs = pgTable("cvs", {
   sourceText: text("source_text").notNull(),
   status: cvStatusEnum().notNull().default("draft"),
   error: text(),
+  // Which PDF/preview layout to render with. Deliberately NOT covered by the content `version`
+  // CAS check below — switching templates is a display choice, not a content edit, so it can't
+  // conflict with (or be blocked by) a concurrent content save.
+  template: cvTemplateEnum().notNull().default("classic"),
   // Validated against the Cv zod schema (modules/cvs/cv.schemas.ts) before being written here.
   content: jsonb().$type<CvContent>(),
   // Optimistic-concurrency counter bumped on every successful write to `content`.

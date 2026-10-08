@@ -1,13 +1,13 @@
+// "Classic" template: a single-column, traditional CV layout. See modern.tsx for the other one.
 // Server-rendered A4 CV as a real PDF with a selectable text layer — @react-pdf/renderer draws
 // actual PDF text objects (not an image of HTML), so the output is both downloadable and
-// copy-pasteable/searchable. Deliberately one fixed template (multiple templates explicitly
-// out of scope per the task brief).
+// copy-pasteable/searchable.
 //
 // Uses react-pdf's built-in Helvetica (a standard PDF font, no embedding needed) rather than an
 // embedded TTF — see README's "what was simplified" section: this keeps the Docker image free of
 // a font asset pipeline at the cost of non-Latin-script support (Helvetica only covers WinAnsi).
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
-import type { CvContent } from "../modules/cvs/cv.schemas.js";
+import type { CvContent } from "../../modules/cvs/cv.schemas.js";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10.5, fontFamily: "Helvetica", color: "#1a1a1a" },
@@ -41,7 +41,7 @@ function dateRange(start: string, end: string): string {
   return [start || "?", end || "Present"].join(" – ");
 }
 
-export function CvDocument({ content }: { content: CvContent }) {
+export function ClassicTemplate({ content }: { content: CvContent }) {
   const { contact, summary, experience, education, skills } = content;
   const contactParts = [contact.email, contact.phone, contact.location, ...contact.links].filter(Boolean);
 

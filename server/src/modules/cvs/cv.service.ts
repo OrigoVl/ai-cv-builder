@@ -7,6 +7,7 @@ import {
   insertCv,
   listCvsByUser,
   setCvStatus,
+  setCvTemplate,
   updateCvContentCas,
   type CvRow,
 } from "./cv.repo.js";
@@ -18,7 +19,7 @@ import {
   type QuestionRow,
 } from "./questions.repo.js";
 import { enqueueJob } from "../../jobs/queue.js";
-import type { CvContent } from "./cv.schemas.js";
+import type { CvContent, CvTemplate } from "./cv.schemas.js";
 
 // Long CVs/cover letters get truncated before ever reaching the model — keeps prompts (and
 // token spend) bounded, and a real CV is never anywhere near this long.
@@ -98,6 +99,14 @@ export async function deleteCv(db: Db, userId: string, id: string): Promise<void
   const existing = await getOwnedCv(db, userId, id);
   if (!existing) throw notFound("CV not found");
   await deleteCvRow(db, id);
+}
+
+export async function updateTemplate(db: Db, userId: string, id: string, template: CvTemplate): Promise<CvRow> {
+  const existing = await getOwnedCv(db, userId, id);
+  if (!existing) throw notFound("CV not found");
+  const updated = await setCvTemplate(db, id, template);
+  if (!updated) throw notFound("CV not found");
+  return updated;
 }
 
 export async function answerQuestion(

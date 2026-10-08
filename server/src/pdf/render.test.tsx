@@ -56,4 +56,37 @@ describe("renderCvPdf", () => {
     const buffer = await renderCvPdf(EMPTY_CV_CONTENT);
     expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   });
+
+  it("renders the 'modern' template with the same content, as a single A4 page", async () => {
+    const content = {
+      ...EMPTY_CV_CONTENT,
+      contact: { name: "Jane Doe", email: "jane@example.com", phone: "", location: "Berlin", links: [] },
+      summary: "Backend engineer focused on reliability.",
+      experience: [
+        {
+          company: "Acme Corp",
+          title: "Senior Backend Engineer",
+          location: "",
+          startDate: "2019",
+          endDate: "2022",
+          bullets: ["Led a team of 5 engineers"],
+        },
+      ],
+      education: [],
+      skills: ["TypeScript"],
+    };
+
+    const buffer = await renderCvPdf(content, "modern");
+    expect(buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+    expect(doc.numPages).toBe(1);
+    const page = await doc.getPage(1);
+    expect(page.view[2]).toBeCloseTo(595.28, 1);
+
+    const text = await extractText(buffer);
+    expect(text).toContain("Jane Doe");
+    expect(text).toContain("Senior Backend Engineer");
+  });
 });

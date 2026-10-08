@@ -1,17 +1,24 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import { db } from "../../db/client.js";
 import { authed, badRequest } from "../../core/http.js";
 import { uploadPdf, assertLooksLikePdf } from "./upload.js";
 import { extractPdfText } from "./pdf-extract.service.js";
-import { CreateCvSchema, UpdateCvSchema, AnswerQuestionSchema, CvContentSchema } from "./cv.schemas.js";
+import { CreateCvSchema, UpdateCvSchema, AnswerQuestionSchema, CvContentSchema, UpdateTemplateSchema } from "./cv.schemas.js";
 import * as cvService from "./cv.service.js";
 import { renderCvPdf } from "../../pdf/render.js";
+import { isTest } from "../../config/env.js";
 
 export const cvsRouter = Router();
 
 // Generation is the expensive, LLM-backed operation — a tighter limit than the rest of the API.
-const createCvLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
+// Skipped in tests: the whole suite shares one in-memory counter (same process, same "IP"), and
+// without this a growing test file eventually starts failing on rate limiting rather than on
+// anything the test itself is checking — the same reasoning auth.ts applies to better-auth's own
+// limiter.
+const createCvLimiter: RequestHandler = isTest
+  ? (_req, _res, next) => next()
+  : rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 cvsRouter.get(
   "/",
@@ -76,6 +83,18 @@ cvsRouter.put(
   }),
 );
 
+cvsRouter.put(
+  "/:id/template",
+  authed(async (req, res) => {
+    const parsed = UpdateTemplateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw badRequest(parsed.error.issues[0]?.message ?? "Invalid request");
+    }
+    const cv = await cvService.updateTemplate(db, req.userId, req.params.id as string, parsed.data.template);
+    res.json({ cv });
+  }),
+);
+
 cvsRouter.delete(
   "/:id",
   authed(async (req, res) => {
@@ -126,7 +145,7 @@ cvsRouter.get(
       throw badRequest("This CV hasn't been generated yet");
     }
     const content = CvContentSchema.parse(cv.content);
-    const buffer = await renderCvPdf(content);
+    const buffer = await renderCvPdf(content, cv.template);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${sanitizeFilename(cv.title)}.pdf"`);
     res.send(buffer);

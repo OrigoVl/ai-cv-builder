@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "../../db/client.js";
 import { cvs } from "../../db/schema/index.js";
-import type { CvContent } from "./cv.schemas.js";
+import type { CvContent, CvTemplate } from "./cv.schemas.js";
 
 export type CvRow = typeof cvs.$inferSelect;
 
@@ -78,4 +78,9 @@ export async function updateCvContentCas(
 
 export async function deleteCv(db: Db, id: string): Promise<void> {
   await db.delete(cvs).where(eq(cvs.id, id));
+}
+
+export async function setCvTemplate(db: Db, id: string, template: CvTemplate): Promise<CvRow | null> {
+  const [row] = await db.update(cvs).set({ template, updatedAt: new Date() }).where(eq(cvs.id, id)).returning();
+  return row ?? null;
 }

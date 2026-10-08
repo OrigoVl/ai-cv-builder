@@ -190,4 +190,34 @@ describe("CV API", () => {
     const res = await api(alice, `/cvs/${cv.id}/pdf`);
     expect(res.status).toBe(400);
   });
+
+  it("lets the owner switch templates, rejects an unknown template, and 404s for another user", async () => {
+    const alice = await registerAndSignIn("alice10@example.test");
+    const bob = await registerAndSignIn("bob10@example.test");
+    const createRes = await api(alice, "/cvs", {
+      method: "POST",
+      body: JSON.stringify({ title: "CV", targetRole: "Engineer", sourceText: "text" }),
+    });
+    const { cv } = (await createRes.json()) as { cv: { id: string } };
+
+    const okRes = await api(alice, `/cvs/${cv.id}/template`, {
+      method: "PUT",
+      body: JSON.stringify({ template: "modern" }),
+    });
+    expect(okRes.status).toBe(200);
+    const { cv: updated } = (await okRes.json()) as { cv: { template: string } };
+    expect(updated.template).toBe("modern");
+
+    const badRes = await api(alice, `/cvs/${cv.id}/template`, {
+      method: "PUT",
+      body: JSON.stringify({ template: "flashy" }),
+    });
+    expect(badRes.status).toBe(400);
+
+    const bobRes = await api(bob, `/cvs/${cv.id}/template`, {
+      method: "PUT",
+      body: JSON.stringify({ template: "modern" }),
+    });
+    expect(bobRes.status).toBe(404);
+  });
 });
