@@ -40,10 +40,17 @@ test("sign up, generate, answer a question, edit, and download a PDF", async ({ 
   // refetch, in shared/queries/cvs.ts, is what actually catches this in normal use).
   await page.waitForTimeout(2000);
 
-  // Manually edit a field and confirm autosave reports success.
+  // Manually edit a field and confirm autosave reports success, AND that the live preview
+  // (which reads the same draft state, not a separate fetch) picks up the edit immediately.
   const summaryBox = page.locator("textarea").first();
   await summaryBox.fill("Backend engineer focused on reliable systems.");
   await expect(page.getByText("Saved")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Backend engineer focused on reliable systems.").last()).toBeVisible();
+
+  // Switching templates updates the preview without touching the editor's content.
+  await page.getByRole("radio", { name: "Modern" }).click();
+  await expect(page.getByRole("radio", { name: "Modern" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByText("Backend engineer focused on reliable systems.").last()).toBeVisible();
 
   // The link is target="_blank" with a Content-Disposition: attachment response — Chromium
   // turns that into a download rather than a page navigation, which Playwright surfaces as a
