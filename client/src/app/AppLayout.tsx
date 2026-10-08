@@ -30,7 +30,7 @@ export function AppLayout() {
         Skip to content
       </a>
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/" className="shrink-0">
             <Logo size={26} />
           </Link>
@@ -51,7 +51,7 @@ export function AppLayout() {
           </div>
         </div>
       </header>
-      <main id="main-content" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <Outlet />
       </main>
     </div>

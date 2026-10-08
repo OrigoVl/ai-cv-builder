@@ -17,11 +17,17 @@ function dateRange(start: string, end: string): string {
  */
 export function CvPreview({ content, template }: { content: CvContent; template: CvTemplate }) {
   return (
-    <div className="sticky top-20">
+    // Sticks near the top of the viewport while the (usually taller) editor column scrolls past
+    // it, same as any sidebar — and once the preview itself is taller than the viewport (a long
+    // CV), it just scrolls along with the page like normal content. No internal scroll area, no
+    // fixed aspect-ratio box: a previous version forced a fixed A4-ratio height with its own
+    // overflow-y-auto, which silently clipped any content past one page behind an easy-to-miss
+    // scrollbar — exactly the "not enough space" complaint this replaces.
+    <div className="sticky top-20 w-full max-w-[460px]">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-500">Live preview</h2>
       </div>
-      <div className="aspect-[210/297] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-card">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">
         {template === "modern" ? <ModernPreview content={content} /> : <ClassicPreview content={content} />}
       </div>
     </div>
@@ -33,10 +39,10 @@ function ClassicPreview({ content }: { content: CvContent }) {
   const contactParts = [contact.email, contact.phone, contact.location, ...contact.links].filter(Boolean);
 
   return (
-    <div className="p-6 text-[10px] leading-snug text-gray-900">
-      <h1 className="text-lg font-bold">{contact.name || "Untitled CV"}</h1>
+    <div className="p-7 text-[11px] leading-snug text-gray-900">
+      <h1 className="text-xl font-bold">{contact.name || "Untitled CV"}</h1>
       {contactParts.length > 0 && (
-        <p className="mt-0.5 flex flex-wrap gap-x-2 text-gray-500">
+        <p className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 break-all text-gray-500">
           {contactParts.map((part, i) => (
             <span key={i}>{part}</span>
           ))}
@@ -44,8 +50,8 @@ function ClassicPreview({ content }: { content: CvContent }) {
       )}
 
       {summary && (
-        <section className="mt-3">
-          <h2 className="border-b border-gray-200 pb-1 text-[9px] font-bold uppercase tracking-wide text-gray-700">
+        <section className="mt-4">
+          <h2 className="border-b border-gray-200 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-700">
             Summary
           </h2>
           <p className="mt-1.5 text-gray-700">{summary}</p>
@@ -53,12 +59,12 @@ function ClassicPreview({ content }: { content: CvContent }) {
       )}
 
       {experience.length > 0 && (
-        <section className="mt-3">
-          <h2 className="border-b border-gray-200 pb-1 text-[9px] font-bold uppercase tracking-wide text-gray-700">
+        <section className="mt-4">
+          <h2 className="border-b border-gray-200 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-700">
             Experience
           </h2>
           {experience.map((entry, i) => (
-            <div key={i} className="mt-2">
+            <div key={i} className="mt-2.5">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-bold">
                   {entry.title}
@@ -69,7 +75,7 @@ function ClassicPreview({ content }: { content: CvContent }) {
               </div>
               {entry.location && <p className="text-gray-500">{entry.location}</p>}
               {entry.bullets.map((bullet, j) => (
-                <p key={j} className="mt-0.5 flex gap-1.5 text-gray-700">
+                <p key={j} className="mt-1 flex gap-1.5 text-gray-700">
                   <span>•</span>
                   <span>{bullet}</span>
                 </p>
@@ -80,12 +86,12 @@ function ClassicPreview({ content }: { content: CvContent }) {
       )}
 
       {education.length > 0 && (
-        <section className="mt-3">
-          <h2 className="border-b border-gray-200 pb-1 text-[9px] font-bold uppercase tracking-wide text-gray-700">
+        <section className="mt-4">
+          <h2 className="border-b border-gray-200 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-700">
             Education
           </h2>
           {education.map((entry, i) => (
-            <div key={i} className="mt-2">
+            <div key={i} className="mt-2.5">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-bold">
                   {entry.degree}
@@ -101,13 +107,13 @@ function ClassicPreview({ content }: { content: CvContent }) {
       )}
 
       {skills.length > 0 && (
-        <section className="mt-3">
-          <h2 className="border-b border-gray-200 pb-1 text-[9px] font-bold uppercase tracking-wide text-gray-700">
+        <section className="mt-4">
+          <h2 className="border-b border-gray-200 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-700">
             Skills
           </h2>
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {skills.map((skill, i) => (
-              <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-700">
+              <span key={i} className="break-words rounded bg-gray-100 px-2 py-1 text-gray-700">
                 {skill}
               </span>
             ))}
@@ -123,15 +129,19 @@ function ModernPreview({ content }: { content: CvContent }) {
   const sidebarContact = [contact.email, contact.phone, contact.location, ...contact.links].filter(Boolean);
 
   return (
-    <div className="flex h-full text-[10px] leading-snug">
-      <div className="w-[34%] shrink-0 bg-brand-600 p-4 text-white">
-        <h1 className="text-sm font-bold leading-tight">{contact.name || "Untitled CV"}</h1>
+    // No h-full here deliberately: this box has no fixed/forced height (see CvPreview above), so
+    // "100%" would resolve against an undefined parent height and collapse to 0. The sidebar's
+    // colored background still spans the full row height on its own, via flex's default
+    // align-items: stretch — no explicit height needed for that.
+    <div className="flex text-[11px] leading-snug">
+      <div className="w-[38%] shrink-0 bg-brand-600 p-5 text-white">
+        <h1 className="text-base font-bold leading-tight">{contact.name || "Untitled CV"}</h1>
 
         {sidebarContact.length > 0 && (
-          <div className="mt-3">
-            <h2 className="text-[8.5px] font-bold uppercase tracking-wide text-brand-200">Contact</h2>
+          <div className="mt-4">
+            <h2 className="text-[9.5px] font-bold uppercase tracking-wide text-brand-200">Contact</h2>
             {sidebarContact.map((line, i) => (
-              <p key={i} className="mt-1 text-brand-50">
+              <p key={i} className="mt-1.5 break-all text-brand-50">
                 {line}
               </p>
             ))}
@@ -139,11 +149,11 @@ function ModernPreview({ content }: { content: CvContent }) {
         )}
 
         {skills.length > 0 && (
-          <div className="mt-3">
-            <h2 className="text-[8.5px] font-bold uppercase tracking-wide text-brand-200">Skills</h2>
-            <div className="mt-1 flex flex-wrap gap-1">
+          <div className="mt-4">
+            <h2 className="text-[9.5px] font-bold uppercase tracking-wide text-brand-200">Skills</h2>
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {skills.map((skill, i) => (
-                <span key={i} className="rounded bg-white/15 px-1.5 py-0.5 text-[9px]">
+                <span key={i} className="break-words rounded bg-white/15 px-1.5 py-0.5 text-[10px]">
                   {skill}
                 </span>
               ))}
@@ -152,10 +162,10 @@ function ModernPreview({ content }: { content: CvContent }) {
         )}
 
         {education.length > 0 && (
-          <div className="mt-3">
-            <h2 className="text-[8.5px] font-bold uppercase tracking-wide text-brand-200">Education</h2>
+          <div className="mt-4">
+            <h2 className="text-[9.5px] font-bold uppercase tracking-wide text-brand-200">Education</h2>
             {education.map((entry, i) => (
-              <div key={i} className="mt-1.5">
+              <div key={i} className="mt-2">
                 <p className="font-bold text-brand-50">
                   {entry.degree}
                   {entry.degree && entry.field ? ", " : ""}
@@ -168,19 +178,19 @@ function ModernPreview({ content }: { content: CvContent }) {
         )}
       </div>
 
-      <div className="flex-1 p-4">
+      <div className="min-w-0 flex-1 p-5">
         {summary && (
           <section>
-            <h2 className="text-[9px] font-bold uppercase tracking-wide text-brand-600">Summary</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-wide text-brand-600">Summary</h2>
             <p className="mt-1.5 text-gray-700">{summary}</p>
           </section>
         )}
 
         {experience.length > 0 && (
-          <section className="mt-3">
-            <h2 className="text-[9px] font-bold uppercase tracking-wide text-brand-600">Experience</h2>
+          <section className="mt-4">
+            <h2 className="text-[10px] font-bold uppercase tracking-wide text-brand-600">Experience</h2>
             {experience.map((entry, i) => (
-              <div key={i} className="mt-2">
+              <div key={i} className="mt-2.5">
                 <p className="font-bold">{entry.title}</p>
                 <p className="text-gray-500">
                   {entry.company}
@@ -189,7 +199,7 @@ function ModernPreview({ content }: { content: CvContent }) {
                 </p>
                 <p className="text-gray-400">{dateRange(entry.startDate, entry.endDate)}</p>
                 {entry.bullets.map((bullet, j) => (
-                  <p key={j} className="mt-0.5 flex gap-1.5 text-gray-700">
+                  <p key={j} className="mt-1 flex gap-1.5 text-gray-700">
                     <span className="text-brand-500">•</span>
                     <span>{bullet}</span>
                   </p>
