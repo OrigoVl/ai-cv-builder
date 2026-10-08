@@ -78,27 +78,41 @@ export function FileDropzone({
         onDrop={handleDrop}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors
+        aria-label="Upload a CV PDF. Click to browse, or drag and drop a file here."
+        aria-describedby="dropzone-hint"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
           ${isDragging ? "border-brand-400 bg-brand-50" : "border-gray-200 bg-gray-50/60 hover:border-gray-300 hover:bg-gray-50"}`}
       >
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-soft">
-          <Upload className="h-5 w-5 text-brand-500" />
+          <Upload className="h-5 w-5 text-brand-500" aria-hidden="true" />
         </div>
         <p className="text-sm font-medium text-gray-700">
           <span className="text-brand-600">Click to upload</span> or drag and drop
         </p>
-        <p className="text-xs text-gray-400">{hint}</p>
+        <p id="dropzone-hint" className="text-xs text-gray-400">
+          {hint}
+        </p>
         <input
           ref={inputRef}
           type="file"
           accept={accept}
-          aria-label="CV PDF file"
+          tabIndex={-1}
+          aria-hidden="true"
           className="hidden"
           onChange={(e) => acceptFile(e.target.files?.[0])}
         />
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
