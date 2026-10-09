@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router";
 import { ArrowLeft, Download } from "lucide-react";
-import { useCv } from "../../shared/queries/cvs.js";
+import { useCv, useUpdateCvMeta } from "../../shared/queries/cvs.js";
 import type { Cv, CvQuestion } from "../../shared/types.js";
 import { StatusBadge } from "./StatusBadge.js";
 import { GeneratingState } from "./GeneratingState.js";
@@ -10,11 +10,13 @@ import { CvPreview } from "./CvPreview.js";
 import { TemplateSwitcher } from "./TemplateSwitcher.js";
 import { QuestionsPanel } from "./QuestionsPanel.js";
 import { CvDetailSkeleton } from "./CvDetailSkeleton.js";
+import { EditableField } from "./EditableField.js";
 import { useCvDraft } from "./useCvDraft.js";
 
 export function CvDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useCv(id);
+  const updateMeta = useUpdateCvMeta(id ?? "");
 
   if (isLoading) return <CvDetailSkeleton />;
   if (error || !data) return <p className="text-sm text-red-600">Could not load this CV.</p>;
@@ -28,10 +30,30 @@ export function CvDetailPage() {
         Back to your CVs
       </Link>
 
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold text-gray-900">{cv.title}</h1>
-          <p className="truncate text-sm text-gray-500">{cv.targetRole}</p>
+      {/* Stacks on narrow screens: the title/role column otherwise has to compete for width with
+          the status badge + download button (which refuse to shrink), forcing it to squeeze and
+          truncate even when the title itself is short — giving it the full row to itself avoids
+          that entirely instead of just truncating more gracefully. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        {/* flex-1 (not just min-w-0) matters here: without it this column sizes to its own
+            content (width:auto on a non-growing flex item), which makes the EditableField
+            button's own `max-w-full` reference a width that's circularly dependent on that same
+            content — Chrome resolves the cycle by undersizing the button by a few px, clipping
+            the last character even with room to spare. Growing to fill the row first gives every
+            descendant a definite width to size against, which breaks the cycle. */}
+        <div className="min-w-0 flex-1">
+          <EditableField
+            value={cv.title}
+            label="CV title"
+            className="text-xl font-semibold text-gray-900"
+            onSave={(title) => updateMeta.mutateAsync({ title, targetRole: cv.targetRole })}
+          />
+          <EditableField
+            value={cv.targetRole}
+            label="Target role"
+            className="text-sm text-gray-500"
+            onSave={(targetRole) => updateMeta.mutateAsync({ title: cv.title, targetRole })}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <StatusBadge status={cv.status} />

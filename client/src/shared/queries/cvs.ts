@@ -105,6 +105,17 @@ export function useUpdateTemplate(id: string) {
   });
 }
 
+export function useUpdateCvMeta(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (meta: { title: string; targetRole: string }) => api.put<{ cv: Cv }>(`/cvs/${id}/meta`, meta),
+    onSuccess: (data) => {
+      qc.setQueryData<CvDetail>(cvKeys.detail(id), (prev) => (prev ? { ...prev, cv: data.cv } : prev));
+      qc.invalidateQueries({ queryKey: cvKeys.list });
+    },
+  });
+}
+
 export function useDismissQuestion(cvId: string) {
   const qc = useQueryClient();
   return useMutation({

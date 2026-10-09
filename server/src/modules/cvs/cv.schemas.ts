@@ -75,3 +75,10 @@ export type CvTemplate = z.infer<typeof CvTemplateSchema>;
 export const UpdateTemplateSchema = z.object({
   template: CvTemplateSchema,
 });
+
+// Title/role are display metadata, not part of the generated `content` — edited separately from
+// the content CAS check (same reasoning as the template switch above: this isn't a content edit).
+export const UpdateMetaSchema = z.object({
+  title: z.string().min(1).max(200),
+  targetRole: z.string().min(1).max(200),
+});

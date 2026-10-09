@@ -220,4 +220,35 @@ describe("CV API", () => {
     });
     expect(bobRes.status).toBe(404);
   });
+
+  it("lets the owner rename the title/target role, rejects an empty value, and 404s for another user", async () => {
+    const alice = await registerAndSignIn("alice11@example.test");
+    const bob = await registerAndSignIn("bob11@example.test");
+    const createRes = await api(alice, "/cvs", {
+      method: "POST",
+      body: JSON.stringify({ title: "CV", targetRole: "Engineer", sourceText: "text" }),
+    });
+    const { cv } = (await createRes.json()) as { cv: { id: string } };
+
+    const okRes = await api(alice, `/cvs/${cv.id}/meta`, {
+      method: "PUT",
+      body: JSON.stringify({ title: "Senior CV", targetRole: "Staff Engineer" }),
+    });
+    expect(okRes.status).toBe(200);
+    const { cv: updated } = (await okRes.json()) as { cv: { title: string; targetRole: string } };
+    expect(updated.title).toBe("Senior CV");
+    expect(updated.targetRole).toBe("Staff Engineer");
+
+    const badRes = await api(alice, `/cvs/${cv.id}/meta`, {
+      method: "PUT",
+      body: JSON.stringify({ title: "", targetRole: "Staff Engineer" }),
+    });
+    expect(badRes.status).toBe(400);
+
+    const bobRes = await api(bob, `/cvs/${cv.id}/meta`, {
+      method: "PUT",
+      body: JSON.stringify({ title: "Hacked", targetRole: "Hacked" }),
+    });
+    expect(bobRes.status).toBe(404);
+  });
 });

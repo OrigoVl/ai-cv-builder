@@ -6,6 +6,7 @@ import {
   getOwnedCv,
   insertCv,
   listCvsByUser,
+  setCvMeta,
   setCvStatus,
   setCvTemplate,
   updateCvContentCas,
@@ -105,6 +106,19 @@ export async function updateTemplate(db: Db, userId: string, id: string, templat
   const existing = await getOwnedCv(db, userId, id);
   if (!existing) throw notFound("CV not found");
   const updated = await setCvTemplate(db, id, template);
+  if (!updated) throw notFound("CV not found");
+  return updated;
+}
+
+export async function updateMeta(
+  db: Db,
+  userId: string,
+  id: string,
+  meta: { title: string; targetRole: string },
+): Promise<CvRow> {
+  const existing = await getOwnedCv(db, userId, id);
+  if (!existing) throw notFound("CV not found");
+  const updated = await setCvMeta(db, id, meta);
   if (!updated) throw notFound("CV not found");
   return updated;
 }

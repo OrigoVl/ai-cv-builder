@@ -84,3 +84,12 @@ export async function setCvTemplate(db: Db, id: string, template: CvTemplate): P
   const [row] = await db.update(cvs).set({ template, updatedAt: new Date() }).where(eq(cvs.id, id)).returning();
   return row ?? null;
 }
+
+export async function setCvMeta(
+  db: Db,
+  id: string,
+  meta: { title: string; targetRole: string },
+): Promise<CvRow | null> {
+  const [row] = await db.update(cvs).set({ ...meta, updatedAt: new Date() }).where(eq(cvs.id, id)).returning();
+  return row ?? null;
+}

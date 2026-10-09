@@ -4,7 +4,14 @@ import { db } from "../../db/client.js";
 import { authed, badRequest } from "../../core/http.js";
 import { uploadPdf, assertLooksLikePdf } from "./upload.js";
 import { extractPdfText } from "./pdf-extract.service.js";
-import { CreateCvSchema, UpdateCvSchema, AnswerQuestionSchema, CvContentSchema, UpdateTemplateSchema } from "./cv.schemas.js";
+import {
+  CreateCvSchema,
+  UpdateCvSchema,
+  AnswerQuestionSchema,
+  CvContentSchema,
+  UpdateTemplateSchema,
+  UpdateMetaSchema,
+} from "./cv.schemas.js";
 import * as cvService from "./cv.service.js";
 import { renderCvPdf } from "../../pdf/render.js";
 import { isTest } from "../../config/env.js";
@@ -91,6 +98,18 @@ cvsRouter.put(
       throw badRequest(parsed.error.issues[0]?.message ?? "Invalid request");
     }
     const cv = await cvService.updateTemplate(db, req.userId, req.params.id as string, parsed.data.template);
+    res.json({ cv });
+  }),
+);
+
+cvsRouter.put(
+  "/:id/meta",
+  authed(async (req, res) => {
+    const parsed = UpdateMetaSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw badRequest(parsed.error.issues[0]?.message ?? "Invalid request");
+    }
+    const cv = await cvService.updateMeta(db, req.userId, req.params.id as string, parsed.data);
     res.json({ cv });
   }),
 );
