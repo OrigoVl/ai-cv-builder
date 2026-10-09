@@ -42,8 +42,8 @@ pnpm e2e
 ```
 
 Server tests run against a real (in-process, WASM) Postgres via [PGlite](https://pglite.dev/) —
-the same committed migrations the real app runs, no Docker needed, no network. 83 server tests
-and 31 client tests, all passing; see "Tests" below for what each file actually covers.
+the same committed migrations the real app runs, no Docker needed, no network. 84 server tests
+and 40 client tests, all passing; see "Tests" below for what each file actually covers.
 
 ### Local dev (without Docker)
 
@@ -290,6 +290,7 @@ the client's `AccountSettingsPage.tsx`.
 | `core/json-path.test.ts` | The tiny path get/set used to merge an answered question into the right spot in the CV. |
 | `features/cvs/useCvDraft.test.ts` | The client-side hook that owns in-progress edits: saves after the debounce, reports `conflict` (not a generic error) on a `409`, and — the important one — does **not** let a server-side change (e.g. a background poll) clobber an unsaved edit while dirty, but does pick the change up once no longer dirty. This is the race the README's "Editing, concurrency" section above describes being caught by an e2e run; this test is what pins it at the unit level now. |
 | `shared/TagInput.test.tsx`, `shared/BulletListEditor.test.tsx` | Add/remove/reorder/dedupe behavior of the skills/links chip input and the per-bullet experience editor. |
+| `features/cvs/EditableField.test.tsx` | The click-to-edit CV title/target role: enters edit mode seeded with the current value, saves the trimmed value on Enter or blur, a no-op edit exits without calling `onSave`, Escape reverts to the original value (not a half-typed draft), an empty value is rejected with an inline error without closing the field, and a failed save shows an error while keeping the field open to retry. |
 | `features/cvs/pdf-templates/templates.test.tsx` | The client's copies of the PDF templates, used by the live preview, render to a real PDF with the right A4 size and extracted text — proof the hand-synced client/server copies haven't drifted, the same way the server's own `pdf/render.test.tsx` checks its copy. |
 | `e2e/cv-flow.spec.ts` | The core happy path through the real UI against a real running container: sign up → describe yourself → wait for generation → answer a question → edit a field → confirm the live preview and a template switch both reflect it → download a real PDF. This is what caught the polling race described above — a bug three layers of unit/integration tests didn't, because each tested one piece in isolation and the bug was in how two pieces interacted over time. |
 | `e2e/account-settings.spec.ts` | Update your name and password, then actually **sign in with the new password** (not just trust a success toast) — this is what caught the sign-in race described above. Also: a wrong password is rejected on account deletion, a correct one deletes the account and signs out, and the account genuinely no longer exists afterward. |
