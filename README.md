@@ -43,7 +43,7 @@ pnpm e2e
 
 Server tests run against a real (in-process, WASM) Postgres via [PGlite](https://pglite.dev/) —
 the same committed migrations the real app runs, no Docker needed, no network. 84 server tests
-and 118 client tests, all passing; see "Tests" below for what each file actually covers.
+and 139 client tests, all passing; see "Tests" below for what each file actually covers.
 
 ### Local dev (without Docker)
 
@@ -293,7 +293,11 @@ the client's `AccountSettingsPage.tsx`.
 | `shared/use-debounced-value.test.ts`, `shared/use-debounced-callback.test.ts` | The debounce primitives autosave and the live preview are built on: settles only after the delay, coalesces rapid changes to the last one, and — for the callback version — flushes a pending call on unmount so navigating away right after typing doesn't drop the edit. |
 | `shared/TagInput.test.tsx`, `shared/BulletListEditor.test.tsx` | Add/remove/reorder/dedupe behavior of the skills/links chip input and the per-bullet experience editor. |
 | `features/cvs/EditableField.test.tsx` | The click-to-edit CV title/target role: enters edit mode seeded with the current value, saves the trimmed value on Enter or blur, a no-op edit exits without calling `onSave`, Escape reverts to the original value (not a half-typed draft), an empty value is rejected with an inline error without closing the field, and a failed save shows an error while keeping the field open to retry. |
+| `features/cvs/CvDetailPage.test.tsx` | The main CV page's status-driven rendering (loading skeleton / load error / generating / failed with a working retry / ready with the editor+preview+template switcher), the Download PDF link appearing only once ready, and that editing the title via `EditableField` carries the CV's *current* `targetRole` through to the save unchanged (not blank or stale), and vice versa. |
 | `features/cvs/TemplateSwitcher.test.tsx` | Reflects the current template via `aria-checked`, PUTs the clicked template, is a no-op when clicking the already-active one, and disables both options while the switch is in flight. |
+| `features/cvs/FailedState.test.tsx` | Shows the server's error message (or omits the line when there is none) and that "Try again" actually calls the retry mutation, disabled while it's in flight. |
+| `shared/FileDropzone.test.tsx` | The upload validation NewCvPage's happy-path test doesn't reach: a non-PDF MIME type and an over-the-limit file are both rejected with a visible error and never reach `onChange`, while a valid file (via click-to-browse, drag-and-drop, or an already-selected file's remove button) does. |
+| `shared/AutoGrowTextarea.test.tsx` | The resize-to-fit-content effect itself (not just "it renders") — jsdom's `scrollHeight` is stubbed per test since jsdom never runs real layout, so this verifies the effect actually reads it and sets `style.height` to match, including growing further as the value wraps onto more lines. |
 | `features/cvs/ExperienceEditor.test.tsx`, `features/cvs/EducationEditor.test.tsx` | Add/edit/reorder/remove entries without the change leaking onto a neighboring entry, plus the boundary-disabled move buttons and empty-state messaging. |
 | `features/cvs/CvEditor.test.tsx` | The section orchestration: editing a field patches only that field onto the full `CvContent`, the summary textarea and add-experience button wire through correctly, and the save-status indicator (including the conflict reload button) reflects `draft.saveState`. |
 | `shared/PreviewErrorBoundary.test.tsx`, `features/cvs/CvPreview.test.tsx` | The live preview's failure containment: a render crash in the (lazy-loaded) PDF preview is caught by the boundary instead of taking down the page, and the Suspense fallback shows while the heavy preview chunk loads. The actual PDF rendering pipeline itself needs a real browser and is covered by `pdf-templates/templates.test.tsx` and `e2e/cv-flow.spec.ts` below, not here. |
