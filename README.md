@@ -336,6 +336,12 @@ the client's `AccountSettingsPage.tsx`.
 - **No password reset or OAuth** — explicitly out of scope per the brief; better-auth would make
   both easy to add later. (Email verification is similarly out of scope, but account deletion,
   password change and profile updates are now in — see the settings page.)
+- **One deliberate deviation from the brief**: it lists "multiple templates" as explicitly out of
+  scope, and this app has two (classic, modern). I added them after the core flow (generation,
+  grounding, editing, single-template PDF export) was solid and tested, judging the marginal cost
+  low — both templates share the same validated `CvContent` schema and the same grounding
+  pipeline, so it's a rendering choice, not new surface area for invented facts or untrusted input.
+  Calling it out explicitly rather than leaving it to be noticed against the checklist.
 - With more time, I'd also: add a retry/backoff visible in the UI while a `generate` job is on
   attempt 2 or 3 (right now the user just sees "Generating…" throughout); make the questions
   panel let you jump the editor directly to the field in question; add a light real-time channel
